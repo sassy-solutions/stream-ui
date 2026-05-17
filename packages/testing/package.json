@@ -1,0 +1,50 @@
+{
+  "name": "@stream-ui/testing",
+  "version": "0.0.0",
+  "description": "Mocks, AG-UI fixtures, RTL helpers for testing @stream-ui consumers.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@stream-ui/core": "workspace:*",
+    "@stream-ui/protocol": "workspace:*"
+  },
+  "peerDependencies": {
+    "vitest": "^2.0.0",
+    "@testing-library/react": "^16.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vitest": { "optional": true },
+    "@testing-library/react": { "optional": true }
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sassy-solutions/stream-ui.git",
+    "directory": "packages/testing"
+  }
+}
