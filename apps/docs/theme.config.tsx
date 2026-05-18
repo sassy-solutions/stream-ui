@@ -5,8 +5,7 @@ const config: DocsThemeConfig = {
   project: {
     link: 'https://github.com/sassy-solutions/stream-ui',
   },
-  docsRepositoryBase:
-    'https://github.com/sassy-solutions/stream-ui/tree/main/apps/docs',
+  docsRepositoryBase: 'https://github.com/sassy-solutions/stream-ui/tree/main/apps/docs',
   footer: {
     content: (
       <span>
