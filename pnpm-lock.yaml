@@ -134,19 +134,37 @@ importers:
       '@stream-ui/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@stream-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@testing-library/react':
         specifier: ^16.0.0
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@25.8.0)(jsdom@25.0.1)(terser@5.47.1)
+      react:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.2.6
+      react-dom:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.2.6(react@19.2.6)
     devDependencies:
+      '@size-limit/preset-small-lib':
+        specifier: ^11.1.6
+        version: 11.2.0(size-limit@11.2.0)
+      '@vitest/coverage-v8':
+        specifier: ^2.1.8
+        version: 2.1.9(vitest@2.1.9(@types/node@25.8.0)(jsdom@25.0.1)(terser@5.47.1))
+      size-limit:
+        specifier: ^11.1.6
+        version: 11.2.0
       tsup:
         specifier: ^8.3.5
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.14)(typescript@5.9.3)
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@25.8.0)(jsdom@25.0.1)(terser@5.47.1)
 
 packages:
 

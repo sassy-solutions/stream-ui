@@ -12,32 +12,66 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
     }
   },
   "files": ["dist"],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo"
+    "size": "size-limit",
+    "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
     "@stream-ui/core": "workspace:*",
     "@stream-ui/protocol": "workspace:*"
   },
   "peerDependencies": {
-    "vitest": "^2.0.0",
-    "@testing-library/react": "^16.0.0"
+    "@stream-ui/react": "workspace:*",
+    "@testing-library/react": "^16.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "vitest": "^2.0.0"
   },
   "peerDependenciesMeta": {
-    "vitest": { "optional": true },
-    "@testing-library/react": { "optional": true }
+    "@stream-ui/react": { "optional": true },
+    "@testing-library/react": { "optional": true },
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "vitest": { "optional": true }
   },
   "devDependencies": {
+    "@size-limit/preset-small-lib": "^11.1.6",
+    "@vitest/coverage-v8": "^2.1.8",
+    "size-limit": "^11.1.6",
     "tsup": "^8.3.5",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   },
+  "size-limit": [
+    {
+      "name": "@stream-ui/testing (ESM)",
+      "path": "dist/index.js",
+      "limit": "6 KB",
+      "gzip": true,
+      "ignore": [
+        "@stream-ui/core",
+        "@stream-ui/protocol",
+        "@stream-ui/react",
+        "@testing-library/react",
+        "react",
+        "react-dom",
+        "vitest"
+      ]
+    }
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
