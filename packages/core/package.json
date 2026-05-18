@@ -24,8 +24,10 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo"
+    "size": "size-limit",
+    "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
     "@stream-ui/protocol": "workspace:*"
@@ -37,11 +39,30 @@
     "zod": { "optional": true }
   },
   "devDependencies": {
+    "@size-limit/preset-small-lib": "^11.1.6",
+    "@vitest/coverage-v8": "^2.1.8",
+    "size-limit": "^11.1.6",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8",
     "zod": "^3.23.0"
   },
+  "size-limit": [
+    {
+      "name": "@stream-ui/core (ESM, no zod)",
+      "path": "dist/index.js",
+      "limit": "15 KB",
+      "gzip": true,
+      "ignore": ["zod", "@stream-ui/protocol"]
+    },
+    {
+      "name": "@stream-ui/core/adapters/zod (ESM)",
+      "path": "dist/adapters/zod.js",
+      "limit": "3 KB",
+      "gzip": true,
+      "ignore": ["zod", "@stream-ui/protocol", "@stream-ui/core"]
+    }
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
