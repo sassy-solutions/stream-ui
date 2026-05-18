@@ -4,14 +4,22 @@
   "description": "Types for AG-UI events + A2UI v0.9 surfaces + form extension. Zero runtime.",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "files": ["dist"],
@@ -33,7 +41,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sassy-solutions/stream-ui.git",
+    "url": "git+https://github.com/sassy-solutions/stream-ui.git",
     "directory": "packages/protocol"
   }
 }
