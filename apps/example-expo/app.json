@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "stream-ui example",
+    "slug": "stream-ui-example-expo",
+    "version": "0.0.0",
+    "scheme": "streamuiexample",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "io.streamui.exampleexpo"
+    },
+    "android": {
+      "package": "io.streamui.exampleexpo"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
