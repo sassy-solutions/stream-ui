@@ -41,6 +41,8 @@ export interface FormEngineOptions {
 }
 
 export interface FormEngine {
+  /** The form spec this engine was created from. */
+  readonly spec: FormSpec;
   store: Store<FormState>;
   setField(name: string, value: unknown): void;
   blur(name: string): void;
@@ -121,6 +123,7 @@ export function createFormEngine(opts: FormEngineOptions): FormEngine {
   };
 
   return {
+    spec,
     store,
     setField(name, value) {
       store.update((s) => {
