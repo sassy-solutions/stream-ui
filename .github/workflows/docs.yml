@@ -1,0 +1,85 @@
+name: Docs
+
+on:
+  pull_request:
+    paths:
+      - "apps/docs/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/docs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/docs/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/docs.yml"
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    name: Deploy docs to Vercel
+    runs-on: ubuntu-latest
+    # Avoid running on forks where Vercel secrets aren't available
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bail out if docs app is empty
+        id: guard
+        shell: bash
+        run: |
+          if [ ! -f apps/docs/package.json ]; then
+            echo "apps/docs is not yet scaffolded — skipping Vercel deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup pnpm
+        if: steps.guard.outputs.skip == 'false'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: steps.guard.outputs.skip == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install Vercel CLI
+        if: steps.guard.outputs.skip == 'false'
+        run: pnpm add -g vercel@latest
+
+      - name: Pull Vercel environment (preview)
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'pull_request'
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Pull Vercel environment (production)
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'push'
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build (preview)
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'pull_request'
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build (production)
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'push'
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy preview
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'pull_request'
+        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy production
+        if: steps.guard.outputs.skip == 'false' && github.event_name == 'push'
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
