@@ -1,6 +1,6 @@
 {
   "name": "@stream-ui/core",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Transport (SSE/WS), incremental JSON parser, state store, form engine. Pure TS, zero deps.",
   "license": "MIT",
   "type": "module",
@@ -24,7 +24,9 @@
       "require": "./dist/shared-react/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -42,8 +44,12 @@
     "zod": "^3.23.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "zod": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@size-limit/preset-small-lib": "^11.1.6",
@@ -62,21 +68,33 @@
       "path": "dist/index.js",
       "limit": "15 KB",
       "gzip": true,
-      "ignore": ["zod", "@stream-ui/protocol", "react"]
+      "ignore": [
+        "zod",
+        "@stream-ui/protocol",
+        "react"
+      ]
     },
     {
       "name": "@stream-ui/core/adapters/zod (ESM)",
       "path": "dist/adapters/zod.js",
       "limit": "3 KB",
       "gzip": true,
-      "ignore": ["zod", "@stream-ui/protocol", "@stream-ui/core"]
+      "ignore": [
+        "zod",
+        "@stream-ui/protocol",
+        "@stream-ui/core"
+      ]
     },
     {
       "name": "@stream-ui/core/shared-react (ESM)",
       "path": "dist/shared-react/index.js",
       "limit": "5 KB",
       "gzip": true,
-      "ignore": ["react", "@stream-ui/protocol", "@stream-ui/core"]
+      "ignore": [
+        "react",
+        "@stream-ui/protocol",
+        "@stream-ui/core"
+      ]
     }
   ],
   "publishConfig": {

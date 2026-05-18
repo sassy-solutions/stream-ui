@@ -1,6 +1,6 @@
 {
   "name": "@stream-ui/testing",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Mocks, AG-UI fixtures, RTL helpers for testing @stream-ui consumers.",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,9 @@
       "require": "./dist/react.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -41,11 +43,21 @@
     "vitest": "^2.0.0"
   },
   "peerDependenciesMeta": {
-    "@stream-ui/react": { "optional": true },
-    "@testing-library/react": { "optional": true },
-    "react": { "optional": true },
-    "react-dom": { "optional": true },
-    "vitest": { "optional": true }
+    "@stream-ui/react": {
+      "optional": true
+    },
+    "@testing-library/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@size-limit/preset-small-lib": "^11.1.6",

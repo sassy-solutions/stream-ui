@@ -1,6 +1,6 @@
 {
   "name": "example-expo",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Expo demo for @stream-ui/react-native (iOS + Android).",
   "main": "expo-router/entry",
