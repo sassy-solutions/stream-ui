@@ -1,0 +1,18 @@
+# Expo
+.expo/
+dist/
+web-build/
+
+# Node
+node_modules/
+
+# Turbo
+.turbo/
+
+# Native
+ios/
+android/
+
+# Misc
+*.log
+.DS_Store
