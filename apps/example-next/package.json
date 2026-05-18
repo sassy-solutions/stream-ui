@@ -1,0 +1,29 @@
+{
+  "name": "example-next",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Next.js 15 App Router demo for @stream-ui — SSR shell + /chat SSE route + RSC streaming.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next .turbo node_modules/.cache"
+  },
+  "dependencies": {
+    "@stream-ui/core": "workspace:*",
+    "@stream-ui/protocol": "workspace:*",
+    "@stream-ui/react": "workspace:*",
+    "@stream-ui/testing": "workspace:*",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  }
+}
