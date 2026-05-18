@@ -1,0 +1,129 @@
+import { Callout } from 'nextra/components';
+
+# With React Native Paper
+
+`@stream-ui/react-native` exposes the same hooks as the React package, plus
+RN-native primitives (`TextInput`-backed composer, `FlatList`-backed message
+list). Drop RN Paper components into the `asChild` slots.
+
+<Callout type="info">
+  Tested with Expo SDK 51+ and RN 0.74+. Should work on any RN setup with
+  React 18 / 19.
+</Callout>
+
+## Install
+
+```bash filename="terminal" copy
+pnpm add @stream-ui/react-native @stream-ui/core @stream-ui/protocol react-native-paper react-native-safe-area-context
+```
+
+Wrap your app with both providers:
+
+```tsx filename="App.tsx" copy
+import { PaperProvider } from 'react-native-paper';
+import { ChatProvider } from '@stream-ui/react-native';
+
+export default function App() {
+  return (
+    <PaperProvider>
+      <ChatProvider
+        transport={{ kind: 'sse', url: 'https://your.api/agent' }}
+      >
+        <AgentScreen />
+      </ChatProvider>
+    </PaperProvider>
+  );
+}
+```
+
+## Chat screen
+
+```tsx filename="screens/AgentScreen.tsx" copy
+import { View } from 'react-native';
+import { Card, Text, TextInput, Button } from 'react-native-paper';
+import { Chat, useChat } from '@stream-ui/react-native';
+
+export function AgentScreen() {
+  const { messages, send, status } = useChat();
+  return (
+    <Chat.Root style={{ flex: 1, padding: 16, gap: 12 }}>
+      <Chat.Messages>
+        {messages.map((m) => (
+          <Chat.Message key={m.id} message={m} asChild>
+            <Card style={{ marginVertical: 4 }}>
+              <Card.Content>
+                <Chat.MessageContent asChild>
+                  <Text>{m.content}</Text>
+                </Chat.MessageContent>
+              </Card.Content>
+            </Card>
+          </Chat.Message>
+        ))}
+      </Chat.Messages>
+
+      <Chat.Composer
+        asChild
+        onSubmit={(text) => send({ role: 'user', content: text })}
+      >
+        {({ value, setValue, submit }) => (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              mode="outlined"
+              value={value}
+              onChangeText={setValue}
+              style={{ flex: 1 }}
+              placeholder="Ask the agent…"
+            />
+            <Button mode="contained" onPress={submit} disabled={status === 'streaming'}>
+              Send
+            </Button>
+          </View>
+        )}
+      </Chat.Composer>
+    </Chat.Root>
+  );
+}
+```
+
+## Form
+
+```tsx filename="screens/AgentForm.tsx" copy
+import { View } from 'react-native';
+import { TextInput, Button, HelperText } from 'react-native-paper';
+import { Form, useFormFromMessage } from '@stream-ui/react-native';
+
+export function AgentForm({ message }: { message: any }) {
+  const form = useFormFromMessage(message);
+  if (!form) return null;
+  return (
+    <Form.Root form={form}>
+      <View style={{ gap: 12 }}>
+        {form.spec.fields.map((field) => (
+          <Form.Field key={field.id} field={field}>
+            {({ value, setValue, error }) => (
+              <View>
+                <TextInput
+                  mode="outlined"
+                  label={field.label}
+                  value={String(value ?? '')}
+                  onChangeText={setValue}
+                  keyboardType={field.kind === 'number' ? 'numeric' : 'default'}
+                  error={!!error}
+                />
+                {!!error && <HelperText type="error">{error}</HelperText>}
+              </View>
+            )}
+          </Form.Field>
+        ))}
+        <Form.Submit asChild>
+          {({ submit, disabled }) => (
+            <Button mode="contained" onPress={submit} disabled={disabled}>
+              Submit
+            </Button>
+          )}
+        </Form.Submit>
+      </View>
+    </Form.Root>
+  );
+}
+```

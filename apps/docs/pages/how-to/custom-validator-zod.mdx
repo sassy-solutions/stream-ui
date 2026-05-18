@@ -1,0 +1,108 @@
+# Custom validator — zod
+
+Wire [zod](https://zod.dev/) into `@stream-ui` form validation. The agent emits
+a `FormSpec` (purely descriptive); you supply the runtime validator that
+gates submit.
+
+## Install
+
+```bash filename="terminal" copy
+pnpm add zod
+```
+
+## Build a validator from `FormSpec`
+
+The trick: walk the `FormSpec.fields` once and synthesize a `z.object({ ... })`.
+
+```ts filename="lib/zod-validator.ts" copy
+import { z, type ZodTypeAny } from 'zod';
+import type { FormSpec, FieldSpec } from '@stream-ui/protocol';
+
+function fieldSchema(field: FieldSpec): ZodTypeAny {
+  let s: ZodTypeAny;
+  switch (field.kind) {
+    case 'number':
+      s = z.coerce.number();
+      if (field.constraints?.min != null) s = (s as z.ZodNumber).min(field.constraints.min);
+      if (field.constraints?.max != null) s = (s as z.ZodNumber).max(field.constraints.max);
+      break;
+    case 'email':
+      s = z.string().email();
+      break;
+    case 'url':
+      s = z.string().url();
+      break;
+    case 'date':
+      s = z.coerce.date();
+      break;
+    case 'checkbox':
+      s = z.boolean();
+      break;
+    case 'multiselect':
+      s = z.array(z.string());
+      break;
+    case 'select': {
+      const values = field.options?.map((o) => o.value) ?? [];
+      s = values.length ? z.enum(values as [string, ...string[]]) : z.string();
+      break;
+    }
+    default:
+      s = z.string();
+      if (field.constraints?.pattern) s = (s as z.ZodString).regex(new RegExp(field.constraints.pattern));
+      if (field.constraints?.min != null) s = (s as z.ZodString).min(field.constraints.min);
+      if (field.constraints?.max != null) s = (s as z.ZodString).max(field.constraints.max);
+  }
+  return field.required ? s : s.optional();
+}
+
+export function buildZodValidator(spec: FormSpec) {
+  const shape = Object.fromEntries(spec.fields.map((f) => [f.id, fieldSchema(f)]));
+  const schema = z.object(shape);
+  return (values: Record<string, unknown>) => {
+    const r = schema.safeParse(values);
+    if (r.success) return { ok: true as const, values: r.data };
+    const errors: Record<string, string> = {};
+    for (const issue of r.error.issues) {
+      const key = String(issue.path[0]);
+      errors[key] = issue.message;
+    }
+    return { ok: false as const, errors };
+  };
+}
+```
+
+## Use it with `Form.Root`
+
+```tsx filename="components/agent-form.tsx" copy
+'use client';
+import { Form, useFormFromMessage } from '@stream-ui/react';
+import { buildZodValidator } from '@/lib/zod-validator';
+
+export function AgentForm({ message }: { message: any }) {
+  const form = useFormFromMessage(message, {
+    validator: (spec) => buildZodValidator(spec),
+  });
+  if (!form) return null;
+
+  return (
+    <Form.Root form={form}>
+      {form.spec.fields.map((field) => (
+        <Form.Field key={field.id} field={field}>
+          {({ value, setValue, error }) => (
+            <label>
+              {field.label}
+              <input value={value as string ?? ''} onChange={(e) => setValue(e.target.value)} />
+              {error && <span className="error">{error}</span>}
+            </label>
+          )}
+        </Form.Field>
+      ))}
+      <Form.Submit>Submit</Form.Submit>
+    </Form.Root>
+  );
+}
+```
+
+`Form.Submit` automatically respects the validator: `disabled` flips to `true`
+when there are errors, and a click triggers re-validation before the
+`SubmitAction` is dispatched.

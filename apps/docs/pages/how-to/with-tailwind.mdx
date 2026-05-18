@@ -1,0 +1,97 @@
+# With Tailwind CSS
+
+No design system, just utility classes. `@stream-ui` primitives render their
+default elements; you drop classes on them via `className`.
+
+## Tailwind setup
+
+```bash filename="terminal" copy
+pnpm add -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+
+`tailwind.config.ts`:
+
+```ts filename="tailwind.config.ts" copy
+import type { Config } from 'tailwindcss';
+
+export default {
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  theme: { extend: {} },
+  plugins: [],
+} satisfies Config;
+```
+
+## Chat
+
+```tsx filename="components/chat.tsx" copy
+'use client';
+import { Chat, useChat } from '@stream-ui/react';
+
+export function ChatPanel() {
+  const { messages, send, status } = useChat();
+  return (
+    <Chat.Root className="flex h-[80vh] flex-col rounded-2xl border bg-zinc-50 dark:bg-zinc-900">
+      <Chat.Messages className="flex-1 space-y-3 overflow-y-auto p-4">
+        {messages.map((m) => (
+          <Chat.Message
+            key={m.id}
+            message={m}
+            className={
+              m.role === 'user'
+                ? 'ml-auto max-w-[80%] rounded-2xl bg-blue-600 px-4 py-2 text-white'
+                : 'mr-auto max-w-[80%] rounded-2xl bg-white px-4 py-2 dark:bg-zinc-800'
+            }
+          >
+            <Chat.MessageContent className="whitespace-pre-wrap text-sm" />
+          </Chat.Message>
+        ))}
+      </Chat.Messages>
+
+      <Chat.StreamStatus className="px-4 py-1 text-xs text-zinc-500" />
+
+      <Chat.Composer
+        className="border-t p-4"
+        onSubmit={(text) => send({ role: 'user', content: text })}
+        disabled={status === 'streaming'}
+      />
+    </Chat.Root>
+  );
+}
+```
+
+## Form
+
+```tsx filename="components/form.tsx" copy
+'use client';
+import { Form, useFormFromMessage } from '@stream-ui/react';
+
+export function StreamedForm({ message }: { message: any }) {
+  const form = useFormFromMessage(message);
+  if (!form) return null;
+  return (
+    <Form.Root form={form} className="space-y-4 rounded-xl border p-4">
+      <h3 className="text-lg font-semibold">{form.spec.title}</h3>
+      {form.spec.fields.map((field) => (
+        <Form.Field key={field.id} field={field}>
+          {({ value, setValue, error }) => (
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">{field.label}</span>
+              <input
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type={field.kind === 'number' ? 'number' : 'text'}
+                value={value as string ?? ''}
+                onChange={(e) => setValue(e.target.value)}
+              />
+              {error && <span className="text-xs text-red-600">{error}</span>}
+            </label>
+          )}
+        </Form.Field>
+      ))}
+      <Form.Submit className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50">
+        Submit
+      </Form.Submit>
+    </Form.Root>
+  );
+}
+```

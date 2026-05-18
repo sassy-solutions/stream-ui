@@ -1,0 +1,111 @@
+# Protocol
+
+`@stream-ui` consumes [AG-UI](https://github.com/ag-ui-protocol/ag-ui) events
+over SSE/WS and renders them into [A2UI v0.9](https://a2ui.org/) surfaces with
+our **`form` extension**.
+
+## AG-UI events we consume
+
+All events are dispatched through `@stream-ui/core`'s state store. Types live in
+`@stream-ui/protocol`.
+
+| Event type | Purpose | Notes |
+|---|---|---|
+| `RUN_STARTED`         | Agent run begins. | Sets `status: 'streaming'`. |
+| `RUN_FINISHED`        | Agent run ends.   | Sets `status: 'idle'`. |
+| `RUN_ERROR`           | Run failed.       | Sets `status: 'error'`, payload exposed via `useStreamStatus`. |
+| `TEXT_MESSAGE_START`  | New assistant message. | Allocates a message in the store. |
+| `TEXT_MESSAGE_CONTENT`| Delta token(s).   | Appended to the message in order. |
+| `TEXT_MESSAGE_END`    | Message finalized.| Marks the message as complete. |
+| `TOOL_CALL_START`     | Tool call begins. | Renders pending state on the message. |
+| `TOOL_CALL_ARGS`      | Tool call arg deltas. | Incremental JSON parser keeps `args` partial-valid. |
+| `TOOL_CALL_END`       | Tool call result. | Result attached to the originating message. |
+| `STATE_SNAPSHOT`      | Whole-state replacement. | Used on reconnect. |
+| `STATE_DELTA`         | JSON Patch ops.   | Applied via RFC 6902 to the shared state tree. |
+| `UI_SURFACE_UPDATE`   | A2UI surface push. | **This is how forms stream in.** See below. |
+| `CUSTOM`              | Pass-through event. | Available via `useChat()` for app-specific events. |
+
+The full set of types is in `AG_UI_EVENT_TYPES` (a `const` array exported from
+`@stream-ui/protocol`) and the JSON Schema is `agUiEventSchema`.
+
+## A2UI Surfaces
+
+A `Surface` is a tree of `Component`s the agent renders into your UI. `@stream-ui`
+supports the v0.9 base set and adds one extension: `FormComponent`.
+
+```ts
+import type { Surface, FormComponent, FormSpec } from '@stream-ui/protocol';
+```
+
+A surface arrives via `UI_SURFACE_UPDATE`. It can be the full surface or a
+`SurfacePatch` (JSON Patch ops) for incremental updates.
+
+## The `form` extension
+
+A `FormSpec` is the streaming-friendly shape of a form:
+
+```ts
+// Shape (abridged — see `formSpecSchema` for full constraints)
+interface FormSpec {
+  id: string;
+  title?: string;
+  fields: FieldSpec[];
+  submit: SubmitAction;
+}
+
+interface FieldSpec {
+  id: string;
+  kind: 'text' | 'number' | 'email' | 'url' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'textarea';
+  label: string;
+  required?: boolean;
+  description?: string;
+  options?: FieldOption[];          // for select/multiselect
+  constraints?: FieldConstraints;   // min, max, pattern, etc.
+  bind?: DataBinding;               // path into shared state
+}
+
+interface SubmitAction {
+  kind: 'tool_call';
+  toolName: string;                 // server-side tool that consumes the payload
+}
+```
+
+### Why a separate spec instead of just JSON Schema?
+
+JSON Schema is a *validation* protocol, not a *rendering* protocol. `FormSpec`
+encodes UI intent (`kind`, `label`, `description`, `options`) so the same agent
+output renders consistently across React, React Native, RSC, and SSR without
+each renderer guessing.
+
+We still validate with JSON Schema *and* a pluggable runtime validator (zod,
+valibot — see [How-to recipes](./how-to)).
+
+### Streaming semantics
+
+`FormSpec` is designed to be **partially valid at every chunk boundary**. The
+incremental JSON parser in `@stream-ui/core` keeps the partially-built object
+parseable as tokens arrive, so:
+
+- The form shell renders as soon as `id` and `title` exist.
+- Each field appears the moment its `id`, `kind`, and `label` are present.
+- `options` populate as the model lists them.
+- The form becomes submittable once `submit` is fully present.
+
+See the [streaming-form recipe](./how-to/streaming-form) for the live behavior
+and [LLM prompts](./llm-prompts) for system prompts that produce well-shaped
+`FormSpec` JSON.
+
+## JSON Schemas
+
+For agent-side validation (Pydantic, ajv, zod-to-json-schema, etc.) we export:
+
+```ts
+import {
+  agUiEventSchema,
+  surfaceSchema,
+  formSpecSchema,
+} from '@stream-ui/protocol';
+```
+
+These are plain JSON values you can hand to any validator. They're also the
+schemas referenced by the prompts on the [LLM prompts](./llm-prompts) page.

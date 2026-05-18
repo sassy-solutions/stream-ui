@@ -1,0 +1,25 @@
+import { Callout } from 'nextra/components';
+
+# API reference
+
+The full API surface is auto-generated from TSDoc via [TypeDoc](https://typedoc.org/)
++ the markdown plugin. Output lands under `reference/generated/*` and is hot-reloaded
+on `pnpm --filter docs dev`.
+
+<Callout type="info">
+  Run `pnpm --filter docs run gen:api` to regenerate.
+  The CI build (`apps/docs/package.json` → `build`) runs this before
+  `next build`, so the deployed site always matches the package sources.
+</Callout>
+
+## Packages
+
+- **`@stream-ui/protocol`** — `AgUiEvent`, `Surface`, `FormSpec`, `FieldSpec`,
+  JSON schemas (`agUiEventSchema`, `surfaceSchema`, `formSpecSchema`).
+- **`@stream-ui/core`** — `ChatClient`, transports (`sseTransport`, `wsTransport`),
+  incremental JSON parser, state store, form engine.
+- **`@stream-ui/react`** — `ChatProvider`, `useChat`, `useFormFromMessage`,
+  `useField`, `useStreamStatus`, `useStableId`, `<Chat.*>` / `<Form.*>` primitives.
+- **`@stream-ui/react/rsc`** — `streamUI` (RSC streaming helper).
+
+Browse the generated reference in the sidebar under **Generated reference**.
