@@ -17,7 +17,8 @@
       "types": "./dist/rsc/index.d.ts",
       "import": "./dist/rsc/index.js",
       "require": "./dist/rsc/index.cjs"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": ["dist"],
   "sideEffects": false,
@@ -25,6 +26,7 @@
     "build": "tsup",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
+    "size": "size-limit",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
@@ -39,16 +41,34 @@
     "react-dom": { "optional": true }
   },
   "devDependencies": {
+    "@size-limit/preset-small-lib": "^11.1.6",
     "@testing-library/react": "^16.1.0",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
     "jsdom": "^25.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "size-limit": "^11.1.6",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
+  "size-limit": [
+    {
+      "name": "@stream-ui/react (ESM)",
+      "path": "dist/index.js",
+      "limit": "7 KB",
+      "gzip": true,
+      "ignore": ["react", "react-dom", "@stream-ui/core", "@stream-ui/protocol"]
+    },
+    {
+      "name": "@stream-ui/react/rsc (ESM)",
+      "path": "dist/rsc/index.js",
+      "limit": "2 KB",
+      "gzip": true,
+      "ignore": ["react", "react-dom", "@stream-ui/core", "@stream-ui/protocol"]
+    }
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
