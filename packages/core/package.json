@@ -17,6 +17,11 @@
       "types": "./dist/adapters/zod.d.ts",
       "import": "./dist/adapters/zod.js",
       "require": "./dist/adapters/zod.cjs"
+    },
+    "./shared-react": {
+      "types": "./dist/shared-react/index.d.ts",
+      "import": "./dist/shared-react/index.js",
+      "require": "./dist/shared-react/index.cjs"
     }
   },
   "files": ["dist"],
@@ -33,14 +38,18 @@
     "@stream-ui/protocol": "workspace:*"
   },
   "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
     "zod": "^3.23.0"
   },
   "peerDependenciesMeta": {
+    "react": { "optional": true },
     "zod": { "optional": true }
   },
   "devDependencies": {
     "@size-limit/preset-small-lib": "^11.1.6",
+    "@types/react": "^19.0.1",
     "@vitest/coverage-v8": "^2.1.8",
+    "react": "^19.0.0",
     "size-limit": "^11.1.6",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
@@ -53,7 +62,7 @@
       "path": "dist/index.js",
       "limit": "15 KB",
       "gzip": true,
-      "ignore": ["zod", "@stream-ui/protocol"]
+      "ignore": ["zod", "@stream-ui/protocol", "react"]
     },
     {
       "name": "@stream-ui/core/adapters/zod (ESM)",
@@ -61,6 +70,13 @@
       "limit": "3 KB",
       "gzip": true,
       "ignore": ["zod", "@stream-ui/protocol", "@stream-ui/core"]
+    },
+    {
+      "name": "@stream-ui/core/shared-react (ESM)",
+      "path": "dist/shared-react/index.js",
+      "limit": "5 KB",
+      "gzip": true,
+      "ignore": ["react", "@stream-ui/protocol", "@stream-ui/core"]
     }
   ],
   "publishConfig": {

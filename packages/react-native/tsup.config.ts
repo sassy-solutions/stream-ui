@@ -11,5 +11,11 @@ export default defineConfig({
   minify: false,
   target: 'es2022',
   outDir: 'dist',
-  external: ['react', 'react-native', '@stream-ui/core', '@stream-ui/protocol'],
+  external: [
+    'react',
+    'react-native',
+    '@stream-ui/core',
+    '@stream-ui/core/shared-react',
+    '@stream-ui/protocol',
+  ],
 });
