@@ -1,0 +1,143 @@
+import { Tabs, Callout } from 'nextra/components';
+
+# With shadcn/ui
+
+`@stream-ui` primitives are headless and `asChild`-aware (Radix-style), so they
+compose with shadcn/ui zero-friction. You hand shadcn components into our
+slots and our hooks do the binding.
+
+<Callout type="info">
+  Same pattern works for any Radix-based design system: hand the design-system
+  component in as a child of `Form.Field` / `Chat.Message` / etc.
+</Callout>
+
+## Chat with shadcn
+
+```tsx filename="components/agent-chat.tsx" copy
+'use client';
+import { Chat, useChat } from '@stream-ui/react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent } from '@/components/ui/card';
+
+export function AgentChat() {
+  const { messages, send, status } = useChat();
+
+  return (
+    <Chat.Root>
+      <Chat.Messages asChild>
+        <ScrollArea className="h-[60vh] p-4">
+          {messages.map((m) => (
+            <Chat.Message key={m.id} message={m} asChild>
+              <Card className="mb-3">
+                <CardContent>
+                  <Chat.MessageContent />
+                </CardContent>
+              </Card>
+            </Chat.Message>
+          ))}
+        </ScrollArea>
+      </Chat.Messages>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const text = (e.currentTarget.elements.namedItem('m') as HTMLTextAreaElement).value;
+          send({ role: 'user', content: text });
+          e.currentTarget.reset();
+        }}
+        className="flex gap-2 p-4"
+      >
+        <Textarea name="m" placeholder="Ask the agent…" />
+        <Button type="submit" disabled={status === 'streaming'}>
+          Send
+        </Button>
+      </form>
+    </Chat.Root>
+  );
+}
+```
+
+## Form with shadcn
+
+The agent emits a `FormSpec` (see [Protocol](/protocol)); we render it with
+shadcn primitives:
+
+```tsx filename="components/agent-form.tsx" copy
+'use client';
+import { Form, useFormFromMessage } from '@stream-ui/react';
+import type { FieldSpec } from '@stream-ui/protocol';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+function renderField(field: FieldSpec, value: unknown, setValue: (v: unknown) => void) {
+  switch (field.kind) {
+    case 'textarea':
+      return <Textarea value={value as string ?? ''} onChange={(e) => setValue(e.target.value)} />;
+    case 'select':
+      return (
+        <Select value={value as string ?? ''} onValueChange={setValue}>
+          <SelectTrigger><SelectValue placeholder={field.description} /></SelectTrigger>
+          <SelectContent>
+            {field.options?.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    default:
+      return (
+        <Input
+          type={field.kind === 'number' ? 'number' : field.kind}
+          value={value as string ?? ''}
+          onChange={(e) => setValue(e.target.value)}
+        />
+      );
+  }
+}
+
+export function AgentForm({ message }: { message: any }) {
+  const form = useFormFromMessage(message);
+  if (!form) return null;
+
+  return (
+    <Form.Root form={form} className="space-y-4">
+      {form.spec.fields.map((field) => (
+        <Form.Field key={field.id} field={field}>
+          {({ value, setValue, error }) => (
+            <div className="grid gap-2">
+              <Label htmlFor={field.id}>{field.label}</Label>
+              {renderField(field, value, setValue)}
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
+          )}
+        </Form.Field>
+      ))}
+      <Form.Submit asChild>
+        <Button type="submit">Submit</Button>
+      </Form.Submit>
+    </Form.Root>
+  );
+}
+```
+
+## See also
+
+<Tabs items={['Tailwind only', 'React Native Paper']}>
+  <Tabs.Tab>
+    See [With Tailwind CSS](./with-tailwind) for the no-shadcn variant.
+  </Tabs.Tab>
+  <Tabs.Tab>
+    See [With RN Paper](./with-rn-paper) for the React Native variant.
+  </Tabs.Tab>
+</Tabs>

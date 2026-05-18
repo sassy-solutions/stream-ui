@@ -1,0 +1,107 @@
+import { Callout } from 'nextra/components';
+
+# RSC — Next.js App router
+
+`@stream-ui/react/rsc` is a separate entry point that ships only the
+server-only streaming helper, so the React Server Component path keeps client
+bundles tiny.
+
+<Callout>
+  The `rsc` entry has *no* `'use client'` exports. Importing it into a client
+  component is a build error by design — that's how we keep the boundary
+  honest.
+</Callout>
+
+## Shape
+
+```tsx filename="app/agent/page.tsx" copy
+import { streamUI } from '@stream-ui/react/rsc';
+import { runAgent } from '@/lib/agent'; // your AG-UI producer
+import { AgentChatClient } from './chat-client';
+
+export default async function AgentPage() {
+  const ui = streamUI({
+    initial: <AgentChatClient />,
+    events: runAgent({ /* …prompt, tools, etc. */ }),
+    onTextMessage: (msg) => <p>{msg.content}</p>,
+    onForm: (form) => <FormShell spec={form.spec} />,
+  });
+
+  return <>{ui}</>;
+}
+```
+
+`streamUI` returns a React Node you can render directly in an `async` Server
+Component. It internally pumps your AG-UI event source through a
+`renderToReadableStream`-friendly suspense boundary, so the user sees tokens
+as they arrive.
+
+## A complete App-router example
+
+`app/layout.tsx`:
+
+```tsx filename="app/layout.tsx" copy
+import { ChatProvider } from '@stream-ui/react';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html>
+      <body>
+        <ChatProvider transport={{ kind: 'sse', url: '/api/agent' }}>
+          {children}
+        </ChatProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+`app/agent/page.tsx` (Server Component):
+
+```tsx filename="app/agent/page.tsx" copy
+import { streamUI } from '@stream-ui/react/rsc';
+import { runAgent } from '@/lib/agent';
+import { ChatShell } from './chat-shell';
+
+export default async function AgentPage({
+  searchParams,
+}: {
+  searchParams: { q?: string };
+}) {
+  const prompt = searchParams.q ?? 'Greet the user';
+
+  const ui = streamUI({
+    initial: <ChatShell prompt={prompt} />,
+    events: runAgent({ prompt }),
+    onTextMessage: (msg) => <p className="prose">{msg.content}</p>,
+    onForm: (form) => <FormShell spec={form.spec} />,
+    onError: (err) => <p className="error">{err.message}</p>,
+  });
+
+  return <main>{ui}</main>;
+}
+
+function FormShell({ spec }: { spec: any }) {
+  // Server-rendered shell; interactivity comes from a client child.
+  return (
+    <section>
+      <h3>{spec.title}</h3>
+      <pre>{JSON.stringify(spec, null, 2)}</pre>
+    </section>
+  );
+}
+```
+
+`app/api/agent/route.ts`: standard AG-UI SSE endpoint — see
+[Quickstart](/quickstart#stream-from-your-server).
+
+## When to use RSC vs the client `ChatProvider`
+
+- **RSC** (`streamUI`): great for static-ish first turns where you want
+  zero-flash SSR + progressive enhancement. The agent's first response is
+  baked into the initial HTML.
+- **`ChatProvider` + `useChat`**: needed for ongoing multi-turn chat with
+  client-side composer and form submission.
+
+Most production apps use both: RSC for the initial agent message, then a
+client island for the live chat afterwards.

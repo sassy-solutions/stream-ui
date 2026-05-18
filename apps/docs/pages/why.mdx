@@ -1,0 +1,57 @@
+# Why @stream-ui
+
+`@stream-ui` exists because LLM UI libraries are stuck in chat-bubble land.
+Real apps need forms, structured data, validation, RSC, and React Native —
+all driven by tokens streaming in.
+
+## The form-first thesis
+
+Chat is one surface. **The structured payload behind the chat is the actual
+product.** When an agent says "OK, let me book that for you," what you really
+want is a form that streams in field-by-field, validates as it goes, and
+submits an action — not a paragraph of text you have to re-type.
+
+`@stream-ui` is built around that primitive:
+
+```
+agent → AG-UI events (SSE/WS)
+      → incremental JSON parse
+      → A2UI v0.9 `Surface` with `form` extension
+      → React/RN primitives that bind to `FieldSpec`
+      → validator (zod, valibot, or your own)
+      → submit → tool call → done
+```
+
+A "chat" component falls out as a special case.
+
+## How we compare
+
+| | `@stream-ui` | [`assistant-ui`](https://github.com/Yonom/assistant-ui) | [Vercel AI SDK UI](https://sdk.vercel.ai/) | [CopilotKit](https://github.com/CopilotKit/CopilotKit) |
+|---|---|---|---|---|
+| **Form-first**                 | ✅ first-class `FormSpec` | ❌ chat-first | ❌ chat-first | partial — generative UI |
+| **React + React Native parity**| ✅ matching hooks, native primitives | recent RN work | ❌ web-only | ❌ web-only |
+| **Zero runtime deps**          | ✅ | ❌ (~12) | ❌ | ❌ |
+| **AG-UI native**               | ✅ | adapter | ❌ | partial |
+| **A2UI v0.9 native**           | ✅ + `form` extension | ❌ | ❌ | ❌ |
+| **RSC streaming helper**       | ✅ `@stream-ui/react/rsc` | partial | ✅ (`useUIState`) | ❌ |
+| **Bundle size target**         | **~16KB** (all packages) | ~85KB | ~40KB | ~120KB |
+| **Custom validator**           | ✅ zod / valibot / yours | ❌ | partial | ❌ |
+| **Headless `asChild` primitives** | ✅ Radix-style | partial | ❌ | ❌ |
+
+## When *not* to pick `@stream-ui`
+
+- You only want a chat bubble UI with no structured output → `assistant-ui` is
+  a friendlier path.
+- You're all-in on the Vercel AI SDK ecosystem and don't need RN → stay there;
+  it's well-supported.
+- You need a turnkey copilot widget with prebuilt actions → CopilotKit is
+  closer to that shape.
+
+## When to pick `@stream-ui`
+
+- You're shipping agents that need to **fill in forms** in your UI.
+- You ship the same product on **web and native**.
+- You care about bundle size (mobile, low-end devices, edge).
+- You want the agent to drive **typed, validated** structured output — not
+  free-text you re-parse.
+- You're building on **AG-UI / A2UI** rather than a single-vendor protocol.

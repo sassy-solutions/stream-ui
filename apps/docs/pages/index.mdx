@@ -1,0 +1,38 @@
+# @stream-ui
+
+> Form-first LLM streaming + parsing for **React** and **React Native**. AG-UI + A2UI native. Zero runtime deps. **~16KB total.**
+
+Most LLM chat libraries are chat-first. `@stream-ui` is **form-first**: it makes
+embedded, **streaming, validated forms** inside LLM responses a first-class
+primitive. Talk to the model, render a form, validate the structured payload,
+submit — all as the tokens arrive.
+
+## Where to start
+
+- **[Why @stream-ui](./why)** — how we compare to `assistant-ui`, Vercel AI SDK
+  UI, and CopilotKit, and when to pick us.
+- **[Quickstart](./quickstart)** — render a streaming chat against an AG-UI SSE
+  endpoint in 5 minutes.
+- **[How-to recipes](./how-to)** — shadcn, Tailwind, RN-Paper, custom
+  validators (zod / valibot), streaming forms, SSR (Pages router), and RSC
+  (App router).
+- **[Protocol](./protocol)** — the AG-UI events we consume and our `form`
+  extension on top of A2UI v0.9.
+- **[API reference](./reference)** — auto-generated from TSDoc via TypeDoc.
+- **[LLM prompts](./llm-prompts)** — copy-paste system prompts for Claude /
+  GPT / Llama that emit valid `FormSpec` JSON, plus a
+  prompt-generate-validate-repair loop.
+
+## Packages
+
+| Package | What |
+|---|---|
+| `@stream-ui/protocol` | AG-UI event types + A2UI v0.9 surfaces + `form` extension. Zero runtime. |
+| `@stream-ui/core`     | Transport (SSE/WS), incremental JSON parser, state store, form engine. |
+| `@stream-ui/react`    | React hooks + headless `asChild` primitives + RSC helper. |
+| `@stream-ui/react-native` | RN hooks + native primitives (`TextInput`, `FlatList`). |
+| `@stream-ui/testing`  | Mocks, AG-UI fixtures, RTL helpers. |
+
+## Status
+
+Pre-alpha. v0.1.0 in progress. MIT.

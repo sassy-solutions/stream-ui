@@ -1,0 +1,132 @@
+import { Callout } from 'nextra/components';
+
+# Streaming forms
+
+The marquee feature. The agent emits a `FormSpec` over AG-UI as a
+`UI_SURFACE_UPDATE`; the incremental JSON parser keeps it partially valid; the
+form's fields **appear progressively** as the model produces them.
+
+<Callout type="info">
+  This is what makes `@stream-ui` *form-first*. You're not waiting for the
+  whole JSON blob; the user sees structure forming live.
+</Callout>
+
+## How it works (under the hood)
+
+1. The agent sends `TOOL_CALL_START` → `TOOL_CALL_ARGS` (deltas) → `TOOL_CALL_END`, **or**
+   directly emits `UI_SURFACE_UPDATE` events containing a `FormComponent`.
+2. `@stream-ui/core` runs incremental JSON parsing on the deltas. Every byte
+   keeps the partial object in a parseable shape.
+3. The state store fires a subscription update with the latest *valid prefix*
+   of the `FormSpec`.
+4. `useFormFromMessage` returns that prefix; React renders only the fields
+   that exist so far.
+5. The form becomes submittable once `submit` lands and validation passes.
+
+## Server side — emitting a streaming form
+
+```ts filename="app/api/agent/route.ts" copy
+import type { AgUiEvent, FormSpec } from '@stream-ui/protocol';
+
+export async function POST(req: Request) {
+  const stream = new ReadableStream({
+    async start(controller) {
+      const enc = new TextEncoder();
+      const send = (e: AgUiEvent) =>
+        controller.enqueue(enc.encode(`data: ${JSON.stringify(e)}\n\n`));
+
+      const runId = crypto.randomUUID();
+      const surfaceId = 'booking';
+      send({ type: 'RUN_STARTED', runId, timestamp: Date.now() });
+
+      // Push the form skeleton first…
+      const initial: Partial<FormSpec> = { id: 'booking-form', title: 'Book a flight' };
+      send({
+        type: 'UI_SURFACE_UPDATE',
+        surfaceId,
+        patch: { op: 'replace', path: '/', value: { kind: 'form', spec: initial } },
+      });
+
+      // …then stream fields one at a time.
+      const fields = [
+        { id: 'from', kind: 'text', label: 'From', required: true },
+        { id: 'to', kind: 'text', label: 'To', required: true },
+        { id: 'date', kind: 'date', label: 'Date', required: true },
+        { id: 'passengers', kind: 'number', label: 'Passengers', required: true, constraints: { min: 1, max: 9 } },
+      ];
+      for (let i = 0; i < fields.length; i++) {
+        send({
+          type: 'UI_SURFACE_UPDATE',
+          surfaceId,
+          patch: { op: 'add', path: `/spec/fields/${i}`, value: fields[i] },
+        });
+        await new Promise((r) => setTimeout(r, 250)); // simulate token cadence
+      }
+
+      // Submit action lands last.
+      send({
+        type: 'UI_SURFACE_UPDATE',
+        surfaceId,
+        patch: { op: 'add', path: '/spec/submit', value: { kind: 'tool_call', toolName: 'bookFlight' } },
+      });
+
+      send({ type: 'RUN_FINISHED', runId, timestamp: Date.now() });
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
+  });
+}
+```
+
+## Client side — render the streaming form
+
+```tsx filename="components/streaming-form.tsx" copy
+'use client';
+import { Form, useFormFromMessage, useStreamStatus } from '@stream-ui/react';
+
+export function StreamingForm({ message }: { message: any }) {
+  const form = useFormFromMessage(message);
+  const status = useStreamStatus();
+
+  if (!form) return <p>Waiting for the agent…</p>;
+
+  return (
+    <Form.Root form={form}>
+      <h3>
+        {form.spec.title ?? 'Loading…'}{' '}
+        {status === 'streaming' && <em>(streaming)</em>}
+      </h3>
+
+      {form.spec.fields.map((field) => (
+        <Form.Field key={field.id} field={field}>
+          {({ value, setValue, error }) => (
+            <label className="block">
+              <span>{field.label}</span>
+              <input
+                type={field.kind === 'number' ? 'number' : field.kind === 'date' ? 'date' : 'text'}
+                value={value as string ?? ''}
+                onChange={(e) => setValue(e.target.value)}
+              />
+              {error && <small>{error}</small>}
+            </label>
+          )}
+        </Form.Field>
+      ))}
+
+      {form.spec.submit && <Form.Submit>Book it</Form.Submit>}
+    </Form.Root>
+  );
+}
+```
+
+Note: `Form.Submit` only renders once `form.spec.submit` exists. Until then,
+the form is non-submittable by construction — no race conditions where users
+hammer the button before the agent finished defining the action.
+
+## Pairing with LLM prompts
+
+See the [LLM prompts](/llm-prompts) page for system prompts that instruct the
+model to emit well-shaped, streaming-friendly `FormSpec` JSON.

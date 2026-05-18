@@ -1,0 +1,100 @@
+# Custom validator — valibot
+
+[valibot](https://valibot.dev/) is the smaller-bundle alternative to zod, which
+matters for `@stream-ui`'s low-overhead promise. The integration shape is
+identical to [zod](./custom-validator-zod) — only the schema construction
+changes.
+
+## Install
+
+```bash filename="terminal" copy
+pnpm add valibot
+```
+
+## Build a validator from `FormSpec`
+
+```ts filename="lib/valibot-validator.ts" copy
+import * as v from 'valibot';
+import type { FormSpec, FieldSpec } from '@stream-ui/protocol';
+
+function fieldSchema(field: FieldSpec) {
+  let s: v.BaseSchema<any, any, any>;
+  switch (field.kind) {
+    case 'number': {
+      const checks: v.GenericPipeAction<number, number, any>[] = [];
+      if (field.constraints?.min != null) checks.push(v.minValue(field.constraints.min));
+      if (field.constraints?.max != null) checks.push(v.maxValue(field.constraints.max));
+      s = v.pipe(v.number(), ...checks);
+      break;
+    }
+    case 'email':
+      s = v.pipe(v.string(), v.email());
+      break;
+    case 'url':
+      s = v.pipe(v.string(), v.url());
+      break;
+    case 'date':
+      s = v.pipe(v.string(), v.isoDate());
+      break;
+    case 'checkbox':
+      s = v.boolean();
+      break;
+    case 'multiselect':
+      s = v.array(v.string());
+      break;
+    case 'select': {
+      const values = field.options?.map((o) => o.value) ?? [];
+      s = values.length ? v.picklist(values as [string, ...string[]]) : v.string();
+      break;
+    }
+    default: {
+      const checks: v.GenericPipeAction<string, string, any>[] = [];
+      if (field.constraints?.pattern) checks.push(v.regex(new RegExp(field.constraints.pattern)));
+      if (field.constraints?.min != null) checks.push(v.minLength(field.constraints.min));
+      if (field.constraints?.max != null) checks.push(v.maxLength(field.constraints.max));
+      s = v.pipe(v.string(), ...checks);
+    }
+  }
+  return field.required ? s : v.optional(s);
+}
+
+export function buildValibotValidator(spec: FormSpec) {
+  const entries = Object.fromEntries(spec.fields.map((f) => [f.id, fieldSchema(f)]));
+  const schema = v.object(entries);
+  return (values: Record<string, unknown>) => {
+    const r = v.safeParse(schema, values);
+    if (r.success) return { ok: true as const, values: r.output };
+    const errors: Record<string, string> = {};
+    for (const issue of r.issues ?? []) {
+      const key = String(issue.path?.[0]?.key ?? '');
+      if (key) errors[key] = issue.message;
+    }
+    return { ok: false as const, errors };
+  };
+}
+```
+
+## Plug it in
+
+```tsx filename="components/agent-form.tsx" copy
+'use client';
+import { Form, useFormFromMessage } from '@stream-ui/react';
+import { buildValibotValidator } from '@/lib/valibot-validator';
+
+export function AgentForm({ message }: { message: any }) {
+  const form = useFormFromMessage(message, {
+    validator: (spec) => buildValibotValidator(spec),
+  });
+  if (!form) return null;
+  /* identical to the zod recipe */
+  return <Form.Root form={form}>{/* … */}</Form.Root>;
+}
+```
+
+## When to pick which
+
+- **zod**: nicer ergonomics, larger bundle (~13KB gzipped), broader ecosystem.
+- **valibot**: smaller bundle (~3KB gzipped tree-shaken), pipe-style API.
+
+Both interoperate with `@stream-ui/react` through the `validator` option —
+swap them per app, not per form.

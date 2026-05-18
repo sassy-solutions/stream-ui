@@ -27,6 +27,30 @@ Most LLM chat libs are chat-first. `@stream-ui` is **form-first**: it makes embe
 | [`@stream-ui/react-native`](./packages/react-native) | RN hooks + native primitives (TextInput, FlatList) |
 | [`@stream-ui/testing`](./packages/testing) | Mocks, AG-UI fixtures, RTL helpers |
 
+## Docs
+
+Full documentation: **[stream-ui.dev](https://stream-ui.dev)** (auto-deployed
+from [`apps/docs`](./apps/docs) on Vercel via `.github/workflows/docs.yml`).
+
+The docs site covers:
+
+- **Why @stream-ui** vs `assistant-ui`, Vercel AI SDK UI, CopilotKit
+- **Quickstart** — render a streaming chat against an AG-UI SSE endpoint
+- **How-to recipes** — shadcn / Tailwind / RN-Paper, zod / valibot validators,
+  streaming forms, SSR (Pages router), RSC (App router)
+- **Protocol** — AG-UI events we consume + our A2UI v0.9 `form` extension
+- **API reference** — auto-generated from TSDoc via TypeDoc
+- **LLM prompts** — system prompts for Claude / GPT / Llama that emit valid
+  `FormSpec` JSON, plus a prompt → validate → repair loop
+
+Run locally:
+
+```bash
+pnpm install
+pnpm --filter docs dev
+# open http://localhost:3000
+```
+
 ## Status
 
 Pre-alpha. v0.1.0 in progress.

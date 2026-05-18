@@ -1,0 +1,168 @@
+import { Steps, Callout } from 'nextra/components';
+
+# Quickstart
+
+Render a streaming chat against an **AG-UI SSE** endpoint in five minutes.
+
+<Callout type="info">
+  This quickstart assumes you already have an AG-UI-compatible streaming
+  endpoint (e.g. `POST /api/agent` returning `text/event-stream`). If you
+  don't, see [Protocol](./protocol) for the event shape and use
+  `@stream-ui/testing` for a local mock.
+</Callout>
+
+<Steps>
+
+### Install
+
+```bash filename="terminal" copy
+pnpm add @stream-ui/react @stream-ui/core @stream-ui/protocol
+# or: npm i / yarn add — same packages
+```
+
+### Wrap your app in `<ChatProvider>`
+
+```tsx filename="app/layout.tsx" copy
+'use client';
+import { ChatProvider } from '@stream-ui/react';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html>
+      <body>
+        <ChatProvider
+          transport={{
+            kind: 'sse',
+            url: '/api/agent',
+            headers: { 'content-type': 'application/json' },
+          }}
+        >
+          {children}
+        </ChatProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### Render the chat
+
+```tsx filename="app/page.tsx" copy
+'use client';
+import { Chat, useChat } from '@stream-ui/react';
+
+export default function Page() {
+  const { messages, send, status } = useChat();
+
+  return (
+    <Chat.Root>
+      <Chat.Messages>
+        {messages.map((m) => (
+          <Chat.Message key={m.id} message={m}>
+            <Chat.MessageContent />
+          </Chat.Message>
+        ))}
+      </Chat.Messages>
+
+      <Chat.StreamStatus />
+
+      <Chat.Composer
+        onSubmit={(text) => send({ role: 'user', content: text })}
+        disabled={status === 'streaming'}
+      />
+    </Chat.Root>
+  );
+}
+```
+
+### Stream from your server
+
+Your route just needs to emit AG-UI events on an SSE stream:
+
+```ts filename="app/api/agent/route.ts" copy
+import type { AgUiEvent } from '@stream-ui/protocol';
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const enc = new TextEncoder();
+      const write = (e: AgUiEvent) =>
+        controller.enqueue(enc.encode(`data: ${JSON.stringify(e)}\n\n`));
+
+      const runId = crypto.randomUUID();
+      const messageId = crypto.randomUUID();
+
+      write({ type: 'RUN_STARTED', runId, timestamp: Date.now() });
+      write({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' });
+      for (const chunk of ['Hello, ', 'world!']) {
+        write({ type: 'TEXT_MESSAGE_CONTENT', messageId, delta: chunk });
+      }
+      write({ type: 'TEXT_MESSAGE_END', messageId });
+      write({ type: 'RUN_FINISHED', runId, timestamp: Date.now() });
+
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+    },
+  });
+}
+```
+
+### Run it
+
+```bash filename="terminal" copy
+pnpm dev
+```
+
+Open `http://localhost:3000`, type something, and watch the tokens stream in.
+
+</Steps>
+
+## Next step: stream a **form**
+
+Plain text streaming is the easy mode. The reason you picked `@stream-ui` is
+**form streaming**:
+
+```tsx filename="app/page.tsx" copy
+import { Form, useFormFromMessage } from '@stream-ui/react';
+
+function MessageForm({ message }: { message: any }) {
+  const form = useFormFromMessage(message);
+  if (!form) return null;
+
+  return (
+    <Form.Root form={form}>
+      {form.spec.fields.map((field) => (
+        <Form.Field key={field.id} field={field}>
+          {({ value, setValue, error }) => (
+            <label>
+              {field.label}
+              <input
+                value={value as string ?? ''}
+                onChange={(e) => setValue(e.target.value)}
+              />
+              {error && <span style={{ color: 'red' }}>{error}</span>}
+            </label>
+          )}
+        </Form.Field>
+      ))}
+      <Form.Submit>Submit</Form.Submit>
+    </Form.Root>
+  );
+}
+```
+
+Have your agent emit a `UI_SURFACE_UPDATE` event with a `form` surface — see
+[Protocol](./protocol) — and the form will stream in field-by-field as the
+model produces them.
+
+Continue with the [How-to recipes](./how-to) for design-system integration
+(shadcn, Tailwind, RN-Paper), validators (zod, valibot), and SSR/RSC.

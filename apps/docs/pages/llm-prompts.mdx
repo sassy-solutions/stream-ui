@@ -1,0 +1,295 @@
+import { Tabs, Callout } from 'nextra/components';
+
+# LLM prompts
+
+Copy-paste system prompts that instruct **Claude / GPT / Llama-class** models
+to emit valid `FormSpec` JSON for `@stream-ui` to render, plus a
+**prompt-generate-validate-repair** loop (A2UI v0.9 pattern).
+
+<Callout type="info">
+  All three prompts reference the **same** `formSpecSchema` exported from
+  `@stream-ui/protocol`. The differences are about *prompting style* — Claude
+  responds best to XML-tagged instructions, GPT to structured-output mode +
+  numbered rules, Llama-class to terse, example-led prompts.
+</Callout>
+
+## Shared rules (drop into all three)
+
+Every prompt below assumes the agent has the JSON schema in scope, e.g. via:
+
+```ts filename="server/agent.ts" copy
+import { formSpecSchema } from '@stream-ui/protocol';
+
+// Hand the schema to your provider, however that provider expects it:
+//   - OpenAI:    response_format: { type: 'json_schema', json_schema: { schema: formSpecSchema, … } }
+//   - Anthropic: tool input_schema: formSpecSchema
+//   - Llama:     few-shot examples + grammar-constrained decoding
+```
+
+The agent's job is **never to apologize or narrate** — only to emit the JSON
+the schema demands.
+
+## Prompts
+
+<Tabs items={['Claude (Anthropic)', 'GPT (OpenAI)', 'Llama-class']}>
+
+<Tabs.Tab>
+
+### System prompt — Claude (Anthropic)
+
+```text filename="prompts/claude-system.txt" copy
+<role>
+You are a UI agent for an app powered by @stream-ui. Your sole job is to emit a
+single A2UI v0.9 FormSpec as a JSON object when the user's request needs
+structured input. You never write prose; you never wrap output in markdown.
+</role>
+
+<schema name="formSpecSchema">
+{{FORM_SPEC_JSON_SCHEMA}}
+</schema>
+
+<rules>
+1. Output exactly one JSON object that conforms to <schema>formSpecSchema</schema>.
+   Do not include comments, explanations, or markdown fences.
+2. Use snake_case field IDs. Labels are human-readable; descriptions are short.
+3. Order fields by what the user fills first. Do not add fields the user did
+   not ask for.
+4. Pick the narrowest `kind` that fits (`email`, `url`, `date` before `text`;
+   `select` before free `text` when options are finite).
+5. Mark `required: true` only for fields the action genuinely needs.
+6. Provide `options` for every `select`/`multiselect` field.
+7. The `submit.toolName` MUST exist in <tools>. If no tool matches, do not emit
+   a form — emit a plain text message instead.
+8. Stream-friendly ordering: emit `id`, `title`, then `fields[]` one at a
+   time, then `submit` LAST.
+</rules>
+
+<tools>
+{{TOOL_LIST_WITH_DESCRIPTIONS}}
+</tools>
+
+<examples>
+<example>
+<user>I want to book a flight from Paris to Tokyo on March 5 for 2 people.</user>
+<assistant>
+{"id":"book-flight","title":"Book a flight","fields":[
+  {"id":"from","kind":"text","label":"From","required":true},
+  {"id":"to","kind":"text","label":"To","required":true},
+  {"id":"date","kind":"date","label":"Departure","required":true},
+  {"id":"passengers","kind":"number","label":"Passengers","required":true,"constraints":{"min":1,"max":9}}
+],"submit":{"kind":"tool_call","toolName":"bookFlight"}}
+</assistant>
+</example>
+</examples>
+```
+
+</Tabs.Tab>
+
+<Tabs.Tab>
+
+### System prompt — GPT (OpenAI)
+
+Pair this with [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
+and hand `formSpecSchema` as the JSON schema. The system prompt then just has
+to nudge intent.
+
+```text filename="prompts/gpt-system.txt" copy
+You are the UI agent of an app powered by @stream-ui. When the user's request
+requires structured input, respond with a JSON object matching the
+FormSpec schema (provided to you as `response_format.json_schema`). Otherwise,
+respond as a normal assistant text message.
+
+RULES:
+1. Output JSON only. No prose, no code fences, no commentary.
+2. Use snake_case for field `id`. Keep `label` human-readable.
+3. Choose the narrowest `kind`. Prefer `email`/`url`/`date`/`select` over `text`.
+4. `required: true` only for fields the submit action genuinely needs.
+5. Always provide `options` for `select`/`multiselect`.
+6. `submit.toolName` MUST be one of the registered tools; if no tool matches,
+   do not produce a form — produce a plain text message.
+7. Order: `id`, `title`, then each `fields[i]`, then `submit` LAST. This is
+   so the form streams in a useful order in the UI.
+
+REGISTERED TOOLS:
+{{TOOL_LIST_WITH_DESCRIPTIONS}}
+
+EXAMPLE
+user: "Sign me up for the weekly newsletter."
+assistant: {"id":"newsletter-signup","title":"Newsletter signup",
+"fields":[
+  {"id":"email","kind":"email","label":"Email","required":true},
+  {"id":"frequency","kind":"select","label":"Frequency","required":true,
+   "options":[{"value":"weekly","label":"Weekly"},{"value":"monthly","label":"Monthly"}]}
+],"submit":{"kind":"tool_call","toolName":"subscribeNewsletter"}}
+```
+
+</Tabs.Tab>
+
+<Tabs.Tab>
+
+### System prompt — Llama-class (open models)
+
+Llama / Mistral / Qwen etc. respond best to terse prompts heavy on **shape
+examples** and **grammar-constrained decoding** (e.g. via llama.cpp's GBNF or
+vLLM's `guided_json`). Keep the prose minimal.
+
+```text filename="prompts/llama-system.txt" copy
+Task: emit ONE JSON object matching the FormSpec schema. No prose. No code
+fences. No keys outside the schema.
+
+Schema (must match exactly):
+{{FORM_SPEC_JSON_SCHEMA}}
+
+Tools available for `submit.toolName`:
+{{TOOL_LIST_WITH_DESCRIPTIONS}}
+
+Rules:
+- `id`: snake_case slug.
+- Each `fields[i].kind` ∈ ["text","number","email","url","date","select","multiselect","checkbox","textarea"].
+- `select`/`multiselect` MUST have `options: [{value,label}, …]`.
+- `required: true` only when the submit tool needs it.
+- Emit keys in this order: id, title, fields, submit.
+
+Example input  : "Help me file a bug: title 'login broken', severity high."
+Example output : {"id":"file-bug","title":"File a bug",
+"fields":[
+  {"id":"title","kind":"text","label":"Title","required":true},
+  {"id":"severity","kind":"select","label":"Severity","required":true,
+   "options":[{"value":"low","label":"Low"},{"value":"med","label":"Medium"},{"value":"high","label":"High"}]},
+  {"id":"description","kind":"textarea","label":"Description"}
+],"submit":{"kind":"tool_call","toolName":"createIssue"}}
+
+Now produce output for this input:
+{{USER_MESSAGE}}
+```
+
+For the **strongest** guarantee that the model emits valid JSON, compile
+`formSpecSchema` into a [GBNF](https://github.com/ggerganov/llama.cpp/blob/master/grammars/README.md)
+or `guided_json` grammar and pass it to the inference engine. The system
+prompt then becomes a *style* prompt, not a *correctness* prompt.
+
+</Tabs.Tab>
+
+</Tabs>
+
+## The prompt → validate → repair loop (A2UI v0.9)
+
+Even with constrained decoding, the model can produce a schema-valid form
+that's *semantically* wrong (e.g. `toolName` doesn't exist, `required` field
+is unanswerable). A2UI v0.9 prescribes a feedback loop. Here's the runtime
+shape:
+
+```ts filename="server/form-loop.ts" copy
+import { formSpecSchema } from '@stream-ui/protocol';
+import Ajv from 'ajv';
+
+const ajv = new Ajv({ allErrors: true });
+const validateShape = ajv.compile(formSpecSchema);
+
+interface AgentLike {
+  generate(opts: { systemPrompt: string; user: string; repair?: string }): Promise<string>;
+}
+
+interface SemanticChecks {
+  toolExists(name: string): boolean;
+}
+
+export async function generateForm({
+  agent,
+  systemPrompt,
+  userMessage,
+  checks,
+  maxRepairs = 2,
+}: {
+  agent: AgentLike;
+  systemPrompt: string;
+  userMessage: string;
+  checks: SemanticChecks;
+  maxRepairs?: number;
+}) {
+  let raw = await agent.generate({ systemPrompt, user: userMessage });
+
+  for (let attempt = 0; attempt <= maxRepairs; attempt++) {
+    // 1. Parse
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      raw = await agent.generate({
+        systemPrompt,
+        user: userMessage,
+        repair: `Your last output was not valid JSON: ${(e as Error).message}. Re-emit ONLY the JSON.`,
+      });
+      continue;
+    }
+
+    // 2. Validate shape (JSON Schema)
+    if (!validateShape(parsed)) {
+      const errs = (validateShape.errors ?? []).map((e) => `${e.instancePath} ${e.message}`).join('; ');
+      raw = await agent.generate({
+        systemPrompt,
+        user: userMessage,
+        repair: `Your output failed FormSpec validation: ${errs}. Re-emit a corrected JSON object only.`,
+      });
+      continue;
+    }
+
+    // 3. Semantic check
+    const spec = parsed as { submit: { toolName: string } };
+    if (!checks.toolExists(spec.submit.toolName)) {
+      raw = await agent.generate({
+        systemPrompt,
+        user: userMessage,
+        repair: `Tool "${spec.submit.toolName}" is not registered. Pick from the tool list and re-emit.`,
+      });
+      continue;
+    }
+
+    return spec; // ✅ valid + semantically grounded
+  }
+
+  throw new Error('Agent could not produce a valid FormSpec after repairs.');
+}
+```
+
+### Loop flow
+
+```
+┌──────────────┐
+│ user message │
+└──────┬───────┘
+       ▼
+┌──────────────┐    invalid JSON / schema    ┌─────────────────────┐
+│  agent.gen() │ ─────────────────────────▶  │ feedback in `repair`│
+└──────┬───────┘                             └──────────┬──────────┘
+       │ valid                                          │ retry (≤ N)
+       ▼                                                ▼
+┌──────────────┐    tool not registered      ┌─────────────────────┐
+│  semantic    │ ─────────────────────────▶  │ feedback in `repair`│
+│   check      │                             └─────────────────────┘
+└──────┬───────┘
+       │ ok
+       ▼
+   emit FormSpec
+   over AG-UI as
+   UI_SURFACE_UPDATE
+```
+
+The loop runs **server-side**, so the user only ever sees a valid form
+streaming in. Failed attempts never reach the wire.
+
+## Reference: the JSON schemas
+
+```ts filename="example.ts" copy
+import {
+  agUiEventSchema,
+  surfaceSchema,
+  formSpecSchema,
+} from '@stream-ui/protocol';
+
+// Drop into your provider's structured-output / tool-use slot.
+console.log(JSON.stringify(formSpecSchema, null, 2));
+```
+
+These schemas are stable across `@stream-ui` 0.x patch versions; we'll bump
+minors on breaking schema changes.

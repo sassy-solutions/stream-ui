@@ -1,0 +1,109 @@
+import { Callout } from 'nextra/components';
+
+# SSR — Next.js Pages router
+
+`@stream-ui/react` is SSR-safe by default: zero top-level `window`/`document`,
+hooks use `useSyncExternalStore` with a server snapshot, and IDs are stable
+across the hydration boundary via `useStableId`.
+
+<Callout type="info">
+  For App-router users, see the [RSC recipe](./rsc-streamui) instead.
+</Callout>
+
+## Wrap `_app.tsx`
+
+```tsx filename="pages/_app.tsx" copy
+import type { AppProps } from 'next/app';
+import { ChatProvider } from '@stream-ui/react';
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <ChatProvider
+      transport={{ kind: 'sse', url: '/api/agent' }}
+      initialState={pageProps.initialChatState /* optional: from getServerSideProps */}
+    >
+      <Component {...pageProps} />
+    </ChatProvider>
+  );
+}
+```
+
+## Hydrate from `getServerSideProps`
+
+You can prefetch the *first turn* server-side and hand the snapshot to the
+provider. This avoids the empty-shell-then-pop the user otherwise sees on
+slow networks.
+
+```tsx filename="pages/agent.tsx" copy
+import type { GetServerSideProps } from 'next';
+import { Chat, useChat } from '@stream-ui/react';
+import type { ChatSnapshot } from '@stream-ui/core';
+
+interface Props { initialChatState: ChatSnapshot }
+
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  // Build a snapshot the client provider will hydrate from.
+  const initialChatState: ChatSnapshot = {
+    messages: [
+      { id: 'sys-1', role: 'assistant', content: 'Hi! What would you like to book?' },
+    ],
+    status: 'idle',
+  };
+  return { props: { initialChatState } };
+};
+
+export default function AgentPage() {
+  const { messages, send } = useChat();
+  return (
+    <Chat.Root>
+      <Chat.Messages>
+        {messages.map((m) => (
+          <Chat.Message key={m.id} message={m}>
+            <Chat.MessageContent />
+          </Chat.Message>
+        ))}
+      </Chat.Messages>
+      <Chat.Composer onSubmit={(text) => send({ role: 'user', content: text })} />
+    </Chat.Root>
+  );
+}
+```
+
+## API route (`pages/api/agent.ts`)
+
+`@stream-ui/core` expects an SSE response from the URL you give the
+transport. In the Pages router you opt out of buffering:
+
+```ts filename="pages/api/agent.ts" copy
+import type { NextApiRequest, NextApiResponse } from 'next';
+import type { AgUiEvent } from '@stream-ui/protocol';
+
+export const config = { api: { responseLimit: false } };
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.writeHead(200, {
+    'content-type': 'text/event-stream',
+    'cache-control': 'no-cache, no-transform',
+    connection: 'keep-alive',
+  });
+
+  const send = (e: AgUiEvent) => res.write(`data: ${JSON.stringify(e)}\n\n`);
+
+  const runId = crypto.randomUUID();
+  const messageId = crypto.randomUUID();
+  send({ type: 'RUN_STARTED', runId, timestamp: Date.now() });
+  send({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' });
+  send({ type: 'TEXT_MESSAGE_CONTENT', messageId, delta: 'Hello from SSR!' });
+  send({ type: 'TEXT_MESSAGE_END', messageId });
+  send({ type: 'RUN_FINISHED', runId, timestamp: Date.now() });
+  res.end();
+}
+```
+
+## Hydration tips
+
+- Use `useStableId()` rather than `useId()` if you mint IDs *inside* primitive
+  children, to avoid mismatches between server and client when the agent is
+  streaming.
+- `useChat({ ssr: true })` returns the SSR snapshot as the initial value on
+  first render, then switches to the live store after hydration.
